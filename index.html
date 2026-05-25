@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Tracker — Meesho & Flipkart</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <h1>Order Tracker</h1>
+      <p class="subtitle">Track Meesho & Flipkart orders, sales, returns, and profit</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="add">Add order</button>
+      <button class="tab" data-tab="import">CSV import</button>
+      <button class="tab" data-tab="orders">All orders</button>
+      <button class="tab" data-tab="api">Connect data</button>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <section class="panel active" data-panel="dashboard">
+      <div class="filter-bar">
+        <label>From <input type="date" id="filter-from"></label>
+        <label>To <input type="date" id="filter-to"></label>
+        <label>Platform
+          <select id="filter-platform">
+            <option value="">All</option>
+            <option>Meesho</option>
+            <option>Flipkart</option>
+          </select>
+        </label>
+        <button id="filter-reset" class="btn-secondary">Reset</button>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric-card"><div class="metric-label">Total orders</div><div class="metric-value" id="m-orders">0</div></div>
+        <div class="metric-card"><div class="metric-label">Total sales</div><div class="metric-value" id="m-sales">₹0</div></div>
+        <div class="metric-card"><div class="metric-label">Returns</div><div class="metric-value" id="m-returns">0</div></div>
+        <div class="metric-card"><div class="metric-label">Net profit</div><div class="metric-value" id="m-profit">₹0</div></div>
+      </div>
+      <div class="metric-grid">
+        <div class="metric-card"><div class="metric-label">Avg order value</div><div class="metric-value" id="m-aov">₹0</div></div>
+        <div class="metric-card"><div class="metric-label">Return rate</div><div class="metric-value" id="m-return-rate">0%</div></div>
+        <div class="metric-card"><div class="metric-label">Refund amount</div><div class="metric-value" id="m-refund">₹0</div></div>
+        <div class="metric-card"><div class="metric-label">Pending</div><div class="metric-value" id="m-pending">0</div></div>
+      </div>
+
+      <h2 class="section-title">Platform breakdown</h2>
+      <div class="platform-split" id="platform-split"></div>
+
+      <h2 class="section-title">Sales comparison</h2>
+      <div class="chart-wrap"><canvas id="platChart"></canvas></div>
+
+      <h2 class="section-title">Monthly trend</h2>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </section>
+
+    <!-- ADD ORDER -->
+    <section class="panel" data-panel="add">
+      <div class="form-grid">
+        <div class="form-field"><label>Order ID</label><input type="text" id="f-id" placeholder="e.g. ORD123"></div>
+        <div class="form-field"><label>Date</label><input type="date" id="f-date"></div>
+        <div class="form-field"><label>Platform</label>
+          <select id="f-platform"><option>Meesho</option><option>Flipkart</option></select>
+        </div>
+        <div class="form-field"><label>Product</label><input type="text" id="f-product" placeholder="Item name"></div>
+        <div class="form-field"><label>Selling price (₹)</label><input type="number" id="f-price" step="0.01"></div>
+        <div class="form-field"><label>Cost price (₹)</label><input type="number" id="f-cost" step="0.01"></div>
+        <div class="form-field"><label>Quantity</label><input type="number" id="f-qty" value="1" min="1"></div>
+        <div class="form-field"><label>Status</label>
+          <select id="f-status"><option>Delivered</option><option>Pending</option><option>Returned</option><option>Upcoming</option></select>
+        </div>
+      </div>
+      <button id="add-btn" class="btn-primary">Add order</button>
+    </section>
+
+    <!-- CSV IMPORT -->
+    <section class="panel" data-panel="import">
+      <p class="hint">
+        Paste CSV with columns: <code>order_id, date, platform, product, price, cost, quantity, status</code>.
+        Status can be Delivered, Pending, Returned, or Upcoming.
+      </p>
+      <textarea id="csv-input" class="csv-area" placeholder="order_id,date,platform,product,price,cost,quantity,status&#10;ORD001,2026-05-20,Meesho,Cotton kurti,499,280,1,Delivered"></textarea>
+      <div class="btn-row">
+        <button id="csv-import-btn" class="btn-primary">Import CSV</button>
+        <button id="csv-sample-btn" class="btn-secondary">Load sample data</button>
+        <label class="btn-secondary file-label">
+          Upload CSV file
+          <input type="file" id="csv-file" accept=".csv" hidden>
+        </label>
+      </div>
+    </section>
+
+    <!-- ALL ORDERS -->
+    <section class="panel" data-panel="orders">
+      <div class="filter-bar">
+        <input type="text" id="search-orders" placeholder="Search by product, order ID, or platform">
+        <button id="export-btn" class="btn-secondary">Export CSV</button>
+        <button id="clear-btn" class="btn-danger">Clear all</button>
+      </div>
+      <div id="orders-list"></div>
+    </section>
+
+    <!-- API SETUP -->
+    <section class="panel" data-panel="api">
+      <div class="info-card">
+        <h2>Connect your seller data</h2>
+        <p>Choose how you want to get orders into the tracker. You can use both — start with CSV today, set up API later.</p>
+      </div>
+
+      <div class="option-grid">
+
+        <!-- OPTION 1: API -->
+        <div class="option-card">
+          <div class="option-header">
+            <span class="option-num">1</span>
+            <div>
+              <h3>Auto-fetch via API</h3>
+              <p class="option-tag">Real-time · Needs setup · Best for ongoing use</p>
+            </div>
+          </div>
+          <p class="option-desc">Pulls upcoming orders automatically every time you click Fetch. Requires API credentials from each platform.</p>
+
+          <div class="platform-block">
+            <h4><span class="badge badge-flipkart">Flipkart</span></h4>
+            <details>
+              <summary>How to get credentials</summary>
+              <ol class="steps">
+                <li>Log in to <a href="https://seller.flipkart.com" target="_blank" rel="noopener">Flipkart Seller Hub</a></li>
+                <li>Settings → API Access → request credentials</li>
+                <li>Approval takes 1–3 business days</li>
+              </ol>
+            </details>
+            <div class="form-grid">
+              <div class="form-field"><label>Client ID</label><input type="text" id="fk-client-id" placeholder="Flipkart client ID"></div>
+              <div class="form-field"><label>Client Secret</label><input type="password" id="fk-client-secret" placeholder="Flipkart client secret"></div>
+            </div>
+            <div class="btn-row">
+              <button id="fk-save" class="btn-primary">Save</button>
+              <button id="fk-fetch" class="btn-secondary">Fetch upcoming orders</button>
+            </div>
+            <p class="api-status" id="fk-status"></p>
+          </div>
+
+          <div class="platform-block">
+            <h4><span class="badge badge-meesho">Meesho</span></h4>
+            <details>
+              <summary>How to get credentials</summary>
+              <ol class="steps">
+                <li>Email <code>supplier-api@meesho.com</code> from your registered seller email</li>
+                <li>Mention your supplier ID and use case</li>
+                <li>They'll send you an API token if approved</li>
+              </ol>
+            </details>
+            <div class="form-grid">
+              <div class="form-field full-width"><label>API Token</label><input type="password" id="ms-token" placeholder="Meesho API token"></div>
+            </div>
+            <div class="btn-row">
+              <button id="ms-save" class="btn-primary">Save</button>
+              <button id="ms-fetch" class="btn-secondary">Fetch upcoming orders</button>
+            </div>
+            <p class="api-status" id="ms-status"></p>
+          </div>
+
+          <p class="hint" style="margin-top: 12px;">
+            <strong>Backend required:</strong> Run <code>cd backend-example && npm install && npm start</code> first. The backend handles auth securely on port 3001.
+          </p>
+        </div>
+
+        <!-- OPTION 2: CSV -->
+        <div class="option-card">
+          <div class="option-header">
+            <span class="option-num">2</span>
+            <div>
+              <h3>Upload CSV file</h3>
+              <p class="option-tag">No setup · Works today · Best to start with</p>
+            </div>
+          </div>
+          <p class="option-desc">Download your order report from the seller panel and upload it here. No credentials needed.</p>
+
+          <div class="platform-block">
+            <h4><span class="badge badge-flipkart">Flipkart</span></h4>
+            <ol class="steps">
+              <li>Open <a href="https://seller.flipkart.com" target="_blank" rel="noopener">Seller Hub</a> → Orders → Manage Orders</li>
+              <li>Filter by status (e.g. Approved, Packed, Dispatched)</li>
+              <li>Click <strong>Export to Excel</strong> and save as CSV</li>
+            </ol>
+          </div>
+
+          <div class="platform-block">
+            <h4><span class="badge badge-meesho">Meesho</span></h4>
+            <ol class="steps">
+              <li>Open <a href="https://supplier.meesho.com" target="_blank" rel="noopener">Supplier Panel</a> → Orders</li>
+              <li>Pick date range or status filter</li>
+              <li>Click <strong>Download</strong> and convert to CSV</li>
+            </ol>
+          </div>
+
+          <div class="upload-box">
+            <p style="font-size: 13px; margin: 0 0 10px; color: var(--text-muted);">Select a CSV file from your computer:</p>
+            <label class="btn-primary file-label">
+              <span>Choose CSV file</span>
+              <input type="file" id="api-csv-file" accept=".csv" hidden>
+            </label>
+            <p class="api-status" id="api-csv-status"></p>
+          </div>
+
+          <p class="hint" style="margin-top: 12px;">
+            CSV columns expected: <code>order_id, date, platform, product, price, cost, quantity, status</code>. If your platform export uses different column names, rename them or use the <strong>CSV import</strong> tab to paste and review first.
+          </p>
+        </div>
+
+      </div>
+
+      <div class="info-card warn">
+        <h3>⚠ Security note</h3>
+        <p><strong>Never share your seller login password</strong> with any tool. Only use API tokens generated from the seller panel — they can be revoked anytime if compromised. Credentials are saved in your browser's localStorage, which is fine for local personal use but unsafe to deploy publicly.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
